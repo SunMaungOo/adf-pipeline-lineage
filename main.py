@@ -2,8 +2,6 @@ from config import (
     AZURE_SUBSCRIPTION_ID,
     AZURE_RESOURCE_GROUP_NAME,
     AZURE_DATA_FACTORY_NAME,
-    AZURE_STORAGE_ACCOUNT,
-    AZURE_CONTAINER_NAME,
     OUTPUT_FILE_NAME
 )
 from client import DataFactoryClient
@@ -11,8 +9,8 @@ from typing import List,Optional,Set
 from dataclasses import dataclass,asdict
 from azure.mgmt.datafactory.models import PipelineResource
 from graph import Edge,remove_node,get_first_nodes,get_disjointed_nodes,join_to_node,merge_edges
-from storage import AzureDataLake
 import json
+from pathlib import Path
 
 @dataclass
 class Activity:
@@ -132,16 +130,22 @@ def main():
     
     pipelines=client.get_all_pipelines()
 
+
+    print("Generating pipeline lineage - started")
+
     lineage = get_pipeline_lineage(pipelines=pipelines)
 
-    with open(OUTPUT_FILE_NAME,"w") as file:
+    print("Generating pipeline lineage - completed")
+
+    output_file_path = Path(f"data/{OUTPUT_FILE_NAME}")
+    output_file_path.parent.mkdir(parents=True,exist_ok=True)
+
+    print(f"Saving file {output_file_path.absolute().as_posix()} - started")
+
+    with output_file_path.open("w") as file:
         json.dump([asdict(edge) for edge in lineage],file,indent=4)
 
-    with AzureDataLake(storage_account=AZURE_STORAGE_ACCOUNT) as client:
-        client.upload_file(container_name=AZURE_CONTAINER_NAME,\
-                           dir_path="/",\
-                           file_name=OUTPUT_FILE_NAME,
-                           local_file_path=OUTPUT_FILE_NAME)
+    print(f"Saving file {output_file_path.absolute().as_posix()} - completed")
 
 if __name__=="__main__":
     main()
